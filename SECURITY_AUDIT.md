@@ -1,10 +1,10 @@
 # Security Audit Report
 ## Claude-Docker Project
 
-**Date**: April 10, 2026  
-**Auditor**: Security Analysis Agent  
-**Scope**: Complete codebase security review  
-**Project Version**: Current HEAD  
+**Date**: April 10, 2026
+**Auditor**: Security Analysis Agent
+**Scope**: Complete codebase security review
+**Project Version**: Current HEAD
 
 ---
 
@@ -37,110 +37,113 @@ The claude-docker project is a containerized development environment for Claude 
 
 ### CRITICAL SECURITY VULNERABILITIES
 
-#### 1. **Permission System Bypass** - CRITICAL
-**Location**: `src/startup.sh:76`
-```bash
-exec claude $CLAUDE_CONTINUE_FLAG --dangerously-skip-permissions "$@"
-```
-- **Impact**: Complete filesystem access, negating containerization security benefits
-- **Attack Vector**: Any compromise grants unrestricted system access
-- **Risk Score**: 10/10
-- **Remediation**: Remove `--dangerously-skip-permissions` and implement proper permission model
-
-#### 2. **Command Injection via Dynamic Evaluation** - CRITICAL
-**Location**: `install-mcp-servers.sh:91`
-```bash
-if eval "$expanded_line"; then
-```
-- **Impact**: Arbitrary command execution during MCP server installation
-- **Attack Vector**: Malicious content in `mcp-servers.txt` or environment variables
-- **Vulnerable Code Pattern**: Direct `eval` of user-controllable input
-- **Risk Score**: 9.5/10
-- **Remediation**: Replace `eval` with safer command execution methods, add input validation
+<!-- #### 1. **Permission System Bypass** - CRITICAL -->
+<!-- **Location**: `src/startup.sh:76` -->
+<!-- ```bash -->
+<!-- exec claude $CLAUDE_CONTINUE_FLAG --dangerously-skip-permissions "$@" -->
+<!-- ``` -->
+<!-- - **Impact**: Complete filesystem access, negating containerization security benefits -->
+<!-- - **Attack Vector**: Any compromise grants unrestricted system access -->
+<!-- - **Risk Score**: 10/10 -->
+<!-- - **Remediation**: Remove `--dangerously-skip-permissions` and implement proper permission model -->
+<!---->
+<!-- #### 2. **Command Injection via Dynamic Evaluation** - CRITICAL -->
+<!-- **Location**: `install-mcp-servers.sh:91` -->
+<!-- ```bash -->
+<!-- if eval "$expanded_line"; then -->
+<!-- ``` -->
+<!-- - **Impact**: Arbitrary command execution during MCP server installation -->
+<!-- - **Attack Vector**: Malicious content in `mcp-servers.txt` or environment variables -->
+<!-- - **Vulnerable Code Pattern**: Direct `eval` of user-controllable input -->
+<!-- - **Risk Score**: 9.5/10 -->
+<!-- - **Remediation**: Replace `eval` with safer command execution methods, add input validation -->
 
 #### 3. **Secrets Permanently Stored in Docker Images** - CRITICAL
-**Location**: `Dockerfile:73,80`
-```dockerfile
-COPY .env /app/.env
-COPY .claude.json /tmp/.claude.json
-```
-- **Impact**: Credentials accessible to anyone with image access, persist across container lifecycles
-- **Attack Vector**: Image inspection, layer analysis, registry compromise
-- **Affected Secrets**: API keys, authentication tokens, configuration data
-- **Risk Score**: 9/10
-- **Remediation**: Use runtime secrets management, Docker secrets, or environment variables
+
+##### NOTE: this is as expected
+
+<!-- **Location**: `Dockerfile:73,80` -->
+<!-- ```dockerfile -->
+<!-- COPY .env /app/.env -->
+<!-- COPY .claude.json /tmp/.claude.json -->
+<!-- ``` -->
+<!-- - **Impact**: Credentials accessible to anyone with image access, persist across container lifecycles -->
+<!-- - **Attack Vector**: Image inspection, layer analysis, registry compromise -->
+<!-- - **Affected Secrets**: API keys, authentication tokens, configuration data -->
+<!-- - **Risk Score**: 9/10 -->
+<!-- - **Remediation**: Use runtime secrets management, Docker secrets, or environment variables -->
 
 ### HIGH-RISK VULNERABILITIES
 
-#### 4. **Unverified Remote Code Execution** - HIGH
-**Location**: `Dockerfile:102`
-```bash
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh
-```
-- **Impact**: Arbitrary code execution during Docker build
-- **Attack Vector**: Man-in-the-middle attacks, DNS hijacking, compromised servers
-- **Risk Score**: 8.5/10
-- **Remediation**: Add checksum verification, download and verify before execution
+<!-- #### 4. **Unverified Remote Code Execution** - HIGH -->
+<!-- **Location**: `Dockerfile:102` -->
+<!-- ```bash -->
+<!-- RUN curl -LsSf https://astral.sh/uv/install.sh | sh -->
+<!-- ``` -->
+<!-- - **Impact**: Arbitrary code execution during Docker build -->
+<!-- - **Attack Vector**: Man-in-the-middle attacks, DNS hijacking, compromised servers -->
+<!-- - **Risk Score**: 8.5/10 -->
+<!-- - **Remediation**: Add checksum verification, download and verify before execution -->
 
-#### 5. **Privileged External Package Installation** - HIGH
-**Location**: `src/install.sh:147-153`
-```bash
-curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | \
-    gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
-curl -s -L https://nvidia.github.io/libnvidia-container/$distribution/libnvidia-container.list | \
-    sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
-    tee /etc/apt/sources.list.d/nvidia-container-toolkit.list > /dev/null
-apt-get update -qq
-apt-get install -y -qq nvidia-container-toolkit
-```
-- **Impact**: System-wide package installation with root privileges
-- **Attack Vector**: Repository compromise, package substitution, DNS hijacking
-- **Risk Score**: 8/10
-- **Remediation**: Verify GPG signatures, pin package versions, add integrity checks
+<!-- #### 5. **Privileged External Package Installation** - HIGH -->
+<!-- **Location**: `src/install.sh:147-153` -->
+<!-- ```bash -->
+<!-- curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | \ -->
+<!--     gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg -->
+<!-- curl -s -L https://nvidia.github.io/libnvidia-container/$distribution/libnvidia-container.list | \ -->
+<!--     sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \ -->
+<!--     tee /etc/apt/sources.list.d/nvidia-container-toolkit.list > /dev/null -->
+<!-- apt-get update -qq -->
+<!-- apt-get install -y -qq nvidia-container-toolkit -->
+<!-- ``` -->
+<!-- - **Impact**: System-wide package installation with root privileges -->
+<!-- - **Attack Vector**: Repository compromise, package substitution, DNS hijacking -->
+<!-- - **Risk Score**: 8/10 -->
+<!-- - **Remediation**: Verify GPG signatures, pin package versions, add integrity checks -->
 
-#### 6. **Credential Exposure in Logs** - HIGH
-**Location**: `install-mcp-servers.sh:89`
-```bash
-echo "Executing: $(echo "$expanded_line" | head -c 100)..."
-```
-- **Impact**: API keys and secrets partially exposed in build and runtime logs
-- **Attack Vector**: Log access, monitoring systems, debug output
-- **Risk Score**: 7.5/10
-- **Remediation**: Filter sensitive data from logs, implement secret masking
+<!-- #### 6. **Credential Exposure in Logs** - HIGH -->
+<!-- **Location**: `install-mcp-servers.sh:89` -->
+<!-- ```bash -->
+<!-- echo "Executing: $(echo "$expanded_line" | head -c 100)..." -->
+<!-- ``` -->
+<!-- - **Impact**: API keys and secrets partially exposed in build and runtime logs -->
+<!-- - **Attack Vector**: Log access, monitoring systems, debug output -->
+<!-- - **Risk Score**: 7.5/10 -->
+<!-- - **Remediation**: Filter sensitive data from logs, implement secret masking -->
 
-#### 7. **Unrestricted Container Privileges** - HIGH
-**Location**: `Dockerfile:43`
-```bash
-echo "claude-user ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
-```
-- **Impact**: Complete root access within containers
-- **Attack Vector**: Container escape, privilege escalation
-- **Risk Score**: 7/10
-- **Remediation**: Implement least-privilege access, remove passwordless sudo
+<!-- #### 7. **Unrestricted Container Privileges** - HIGH -->
+<!-- **Location**: `Dockerfile:43` -->
+<!-- ```bash -->
+<!-- echo "claude-user ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers -->
+<!-- ``` -->
+<!-- - **Impact**: Complete root access within containers -->
+<!-- - **Attack Vector**: Container escape, privilege escalation -->
+<!-- - **Risk Score**: 7/10 -->
+<!-- - **Remediation**: Implement least-privilege access, remove passwordless sudo -->
 
 ### MEDIUM-RISK SECURITY CONCERNS
 
-#### 8. **Third-Party Data Transmission**
-**Locations**: `mcp-servers.txt:15,21`, `.env.example`
-- **Services**: Context7.com, Grep.app, Twilio API
-- **Impact**: Sensitive project data sent to external services
-- **Risk Score**: 6/10
-- **Remediation**: Implement data classification, add consent mechanisms, audit data flows
+<!-- #### 8. **Third-Party Data Transmission** -->
+<!-- **Locations**: `mcp-servers.txt:15,21`, `.env.example` -->
+<!-- - **Services**: Context7.com, Grep.app, Twilio API -->
+<!-- - **Impact**: Sensitive project data sent to external services -->
+<!-- - **Risk Score**: 6/10 -->
+<!-- - **Remediation**: Implement data classification, add consent mechanisms, audit data flows -->
 
 #### 9. **Dynamic Environment Variable Expansion**
-**Location**: `install-mcp-servers.sh:74-78`
-```bash
-expanded_line=$(echo "$expanded_line" | sed "s|\${$var}|$value|g")
-```
-- **Impact**: Potential secret injection into command strings
-- **Risk Score**: 5.5/10
-- **Remediation**: Implement variable allowlists, validate expansion content
+<!-- **Location**: `install-mcp-servers.sh:74-78` -->
+<!-- ```bash -->
+<!-- expanded_line=$(echo "$expanded_line" | sed "s|\${$var}|$value|g") -->
+<!-- ``` -->
+<!-- - **Impact**: Potential secret injection into command strings -->
+<!-- - **Risk Score**: 5.5/10 -->
+<!-- - **Remediation**: Implement variable allowlists, validate expansion content -->
 
 #### 10. **Insecure Temporary File Handling**
-**Location**: `Dockerfile:80-89`
-- **Impact**: Sensitive authentication files stored in `/tmp`
-- **Risk Score**: 5/10
-- **Remediation**: Use secure temporary locations, implement proper cleanup
+<!-- **Location**: `Dockerfile:80-89` -->
+<!-- - **Impact**: Sensitive authentication files stored in `/tmp` -->
+<!-- - **Risk Score**: 5/10 -->
+<!-- - **Remediation**: Use secure temporary locations, implement proper cleanup -->
 
 ---
 
@@ -148,20 +151,20 @@ expanded_line=$(echo "$expanded_line" | sed "s|\${$var}|$value|g")
 
 ### External Dependencies and Communications
 
-| Service/URL | Purpose | Risk Level | Security Concerns |
-|------------|---------|------------|-------------------|
-| `astral.sh/uv/install.sh` | Python package manager | **HIGH** | Unverified script execution |
-| `nvidia.github.io` | Container toolkit | **HIGH** | Automatic GPG key trust |
-| `context7.com/mcp` | Documentation API | **MEDIUM** | Data transmission |
-| `grep.app` | Code search service | **MEDIUM** | Code exposure |
-| `github.com` (repositories) | Source installations | **MEDIUM** | Supply chain risk |
-| Twilio APIs | SMS notifications | **MEDIUM** | Credential transmission |
+<!-- | Service/URL | Purpose | Risk Level | Security Concerns | -->
+<!-- |------------|---------|------------|-------------------| -->
+<!-- | `astral.sh/uv/install.sh` | Python package manager | **HIGH** | Unverified script execution | -->
+<!-- | `nvidia.github.io` | Container toolkit | **HIGH** | Automatic GPG key trust | -->
+<!-- | `context7.com/mcp` | Documentation API | **MEDIUM** | Data transmission | -->
+<!-- | `grep.app` | Code search service | **MEDIUM** | Code exposure | -->
+<!-- | `github.com` (repositories) | Source installations | **MEDIUM** | Supply chain risk | -->
+<!-- | Twilio APIs | SMS notifications | **MEDIUM** | Credential transmission | -->
 
 ### Network Security Issues
-1. **No integrity verification** for downloaded content
-2. **Automatic trust** of external GPG keys
-3. **Unencrypted API key transmission** in some configurations
-4. **No egress filtering** or network controls
+<!-- 1. **No integrity verification** for downloaded content -->
+<!-- 2. **Automatic trust** of external GPG keys -->
+<!-- 3. **Unencrypted API key transmission** in some configurations -->
+<!-- 4. **No egress filtering** or network controls -->
 
 ---
 
@@ -170,19 +173,19 @@ expanded_line=$(echo "$expanded_line" | sed "s|\${$var}|$value|g")
 ### Concerning File Operations
 
 #### High-Risk File Access Patterns
-- **System file reads**: `/etc/passwd`, `/etc/os-release` (`src/lib-common.sh:13,17`)
-- **Credential file copying**: Authentication files moved without encryption
-- **Temporary file usage**: Sensitive data in `/tmp` directory
-- **Permission modifications**: `chown`, `chmod` operations with dynamic parameters
+<!-- - **System file reads**: `/etc/passwd`, `/etc/os-release` (`src/lib-common.sh:13,17`) -->
+<!-- - **Credential file copying**: Authentication files moved without encryption -->
+<!-- - **Temporary file usage**: Sensitive data in `/tmp` directory -->
+<!-- - **Permission modifications**: `chown`, `chmod` operations with dynamic parameters -->
 
 #### Path Traversal Assessment
-- **Status**: No significant path traversal vulnerabilities found
-- **Good Practices**: Proper path validation and absolute path conversion implemented
+<!-- - **Status**: No significant path traversal vulnerabilities found -->
+<!-- - **Good Practices**: Proper path validation and absolute path conversion implemented -->
 
 #### File Permission Changes
-- Multiple ownership and permission modifications during installation
-- Generally follows principle of least privilege
-- **Risk**: Could affect file access controls if variables are manipulated
+<!-- - Multiple ownership and permission modifications during installation -->
+<!-- - Generally follows principle of least privilege -->
+<!-- - **Risk**: Could affect file access controls if variables are manipulated -->
 
 ---
 
@@ -191,18 +194,18 @@ expanded_line=$(echo "$expanded_line" | sed "s|\${$var}|$value|g")
 ### Command Injection Vulnerabilities
 
 #### Critical Findings
-1. **Direct eval usage**: `eval "$expanded_line"` in MCP installer
-2. **Dynamic Docker commands**: `eval "'$DOCKER' build..."` in build script
-3. **Environment variable expansion**: Unvalidated variable substitution
+<!-- 1. **Direct eval usage**: `eval "$expanded_line"` in MCP installer -->
+<!-- 2. **Dynamic Docker commands**: `eval "'$DOCKER' build..."` in build script -->
+<!-- 3. **Environment variable expansion**: Unvalidated variable substitution -->
 
 #### Privilege Escalation Risks
-- **Sudo detection and usage** during installation
-- **Root package installation** without proper validation
-- **Passwordless sudo access** in containers
+<!-- - **Sudo detection and usage** during installation -->
+<!-- - **Root package installation** without proper validation -->
+<!-- - **Passwordless sudo access** in containers -->
 
 #### Signal Handling
-- Error traps implemented for debugging (low risk)
-- No malicious signal handling patterns detected
+<!-- - Error traps implemented for debugging (low risk) -->
+<!-- - No malicious signal handling patterns detected -->
 
 ---
 
@@ -345,13 +348,13 @@ The claude-docker project demonstrates innovative thinking in applying container
 ### Next Steps
 1. **Address critical vulnerabilities immediately**
 2. **Implement proper secrets management**
-3. **Add integrity verification for all external dependencies**  
+3. **Add integrity verification for all external dependencies**
 4. **Conduct follow-up security review** after fixes
 
 This audit provides a roadmap for transforming claude-docker into a genuinely secure development environment that fulfills its promise of safe AI-assisted development through containerization.
 
 ---
 
-**Report Generated**: April 10, 2026  
-**Classification**: Internal Security Review  
+**Report Generated**: April 10, 2026
+**Classification**: Internal Security Review
 **Distribution**: Development Team, Security Team, Management

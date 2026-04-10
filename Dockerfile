@@ -99,13 +99,13 @@ ENV HOME=/home/claude-user
 
 # Install uv (Astral) for claude-user for Serena MCP (todo make this modular.)
 # Note: Will be installed for claude-user after user creation
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+# RUN curl -LsSf NOOOOOOOOOOOOO use pipx install uv
 
 # Add claude-user's local bin to PATH
 ENV PATH="/home/claude-user/.local/bin:${PATH}"
 
 # Install MCP servers from configuration file
-RUN /app/install-mcp-servers.sh
+# RUN /app/install-mcp-servers.sh
 
 # Configure git user during build using host git config passed as build args
 ARG GIT_USER_NAME=""
