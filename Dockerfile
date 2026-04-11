@@ -80,9 +80,9 @@ COPY .claude/CLAUDE.md /home/claude-user/.claude/CLAUDE.md
 COPY .claude.json /tmp/.claude.json
 
 # Copy MCP server configuration files (as root)
-COPY mcp-servers.txt /app/
-COPY install-mcp-servers.sh /app/
-RUN chmod +x /app/install-mcp-servers.sh
+# COPY mcp-servers.txt /app/
+# COPY install-mcp-servers.sh /app/
+# RUN chmod +x /app/install-mcp-servers.sh
 
 # Move auth files to proper location before switching user
 RUN cp /tmp/.claude.json /home/claude-user/.claude.json && \
