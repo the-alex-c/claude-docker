@@ -1,7 +1,7 @@
 # ABOUTME: Docker image for Claude Code with Twilio MCP server
 # ABOUTME: Provides autonomous Claude Code environment with SMS notifications
 
-FROM node:20.18.1-slim
+FROM node:24-slim
 
 # delete default node user if exists
 # we will likely need his UID
@@ -10,14 +10,17 @@ RUN delgroup node || true
 
 # Install Node.js and required system dependencies
 RUN apt-get update && apt-get install -y \
+    openssl \
     git \
     curl \
     wget \
     python3 \
     python3-pip \
+    pipx \
     build-essential \
     sudo \
     gettext-base \
+    cargo \
     && rm -rf /var/lib/apt/lists/*
 
 # Install additional system packages if specified
@@ -119,6 +122,16 @@ RUN if [ -n "$GIT_USER_NAME" ] && [ -n "$GIT_USER_EMAIL" ]; then \
         echo "Warning: No git user configured on host system"; \
         echo "Run 'git config --global user.name \"Your Name\"' and 'git config --global user.email \"you@example.com\"' on host first"; \
     fi
+
+# Install Rust Token Killer
+RUN curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh
+# RUN echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+# RUN cargo install --git https://github.com/rtk-ai/rtk
+RUN rtk init -g
+
+# Install nWave harness
+RUN pipx install nwave-ai
+RUN nwave-ai install
 
 # Set working directory to mounted volume
 WORKDIR /workspace
