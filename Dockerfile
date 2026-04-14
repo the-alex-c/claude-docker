@@ -34,6 +34,10 @@ else \
     echo "No additional system packages specified"; \
 fi
 
+# Rootless Docker: container UID 0 maps to host user, so chown'ing to claude-user
+# (UID 1000 in container) is unnecessary — and the runtime overrides USER to 0:0.
+ARG ROOTLESS=0
+
 # Create a non-root user with matching host UID/GID
 ARG USER_UID=1000
 ARG USER_GID=1000
@@ -111,8 +115,7 @@ ENV PATH="/home/claude-user/.local/bin:${PATH}"
 # RUN /app/install-mcp-servers.sh
 
 # For rootless Docker
-RUN chown claude-user:claude-user -R /home/claude-user/
-RUN chown claude-user:claude-user -R /app/
+RUN chown -R claude-user /app /home/claude-user;
 
 # Configure git user during build using host git config passed as build args
 ARG GIT_USER_NAME=""

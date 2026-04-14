@@ -60,6 +60,27 @@ done
 check_container_runtime "$DOCKER" "1.44"
 resolve_claude_docker_dir
 
+# Detect rootless mode. Under rootless Docker, container UID 0 maps to the host
+# user, and container UID 1000 (claude-user) maps to a subuid — which makes
+# host-owned bind mounts appear as root-owned inside the container and
+# inaccessible to claude-user. Handle by running as root (docker) or keeping
+# the host UID (podman).
+ROOTLESS=0
+RUNTIME_NAME="$(basename "$DOCKER")"
+if [ "$RUNTIME_NAME" = "docker" ]; then
+    if "$DOCKER" info --format '{{.SecurityOptions}}' 2>/dev/null | grep -q rootless; then
+        ROOTLESS=1
+    fi
+elif [ "$RUNTIME_NAME" = "podman" ]; then
+    if [ "$("$DOCKER" info --format '{{.Host.Security.Rootless}}' 2>/dev/null)" = "true" ];
+then
+        ROOTLESS=1
+    fi
+fi
+if [ "$ROOTLESS" = "1" ]; then
+    echo "✓ Detected rootless $RUNTIME_NAME — adjusting user namespace mapping"
+fi
+
 # Get the absolute path of the current directory
 CURRENT_DIR=$(pwd)
 HOST_HOME="${HOME:-}"
@@ -118,13 +139,16 @@ if [ "$NEED_REBUILD" = true ]; then
     if [ -n "$HOST_HOME" ] && [ -f "$HOST_HOME/.claude.json" ]; then
         cp "$HOST_HOME/.claude.json" "$PROJECT_ROOT/.claude.json"
     fi
-    
+
     # Get git config from host
     GIT_USER_NAME=$(git config --global --get user.name 2>/dev/null || echo "")
     GIT_USER_EMAIL=$(git config --global --get user.email 2>/dev/null || echo "")
-    
+
     # Build docker command with conditional system packages and git config
     BUILD_ARGS="--build-arg USER_UID=$(id -u) --build-arg USER_GID=$(id -g)"
+    if [ "$ROOTLESS" = "1" ]; then
+        BUILD_ARGS="$BUILD_ARGS --build-arg ROOTLESS=1"
+    fi
     if [ -n "${GIT_USER_NAME:-}" ] && [ -n "${GIT_USER_EMAIL:-}" ]; then
         BUILD_ARGS="$BUILD_ARGS --build-arg GIT_USER_NAME=\"$GIT_USER_NAME\" --build-arg GIT_USER_EMAIL=\"$GIT_USER_EMAIL\""
     fi
@@ -138,7 +162,7 @@ if [ "$NEED_REBUILD" = true ]; then
     fi
 
     eval "'$DOCKER' build $NO_CACHE $BUILD_ARGS -t claude-docker:latest \"$PROJECT_ROOT\""
-    
+
     # Clean up copied auth files
     rm -f "$PROJECT_ROOT/.claude.json"
 fi
@@ -183,7 +207,7 @@ if [ ! -f "$SSH_KEY_PATH" ] || [ ! -f "$SSH_PUB_KEY_PATH" ]; then
     echo ""
 else
     echo "✓ SSH keys found for git operations"
-    
+
     # Create SSH config if it doesn't exist
     SSH_CONFIG_PATH="$SSH_DIR/config"
     if [ ! -f "$SSH_CONFIG_PATH" ]; then
@@ -224,6 +248,17 @@ fi
 
 # Enable host.docker.internal DNS so container can reach host services (e.g. vLLM on port 8000)
 DOCKER_OPTS="$DOCKER_OPTS --add-host=host.docker.internal:host-gateway"
+
+# Rootless user-namespace handling: docker rootless maps container UID 0 to the
+# host user, so run as root inside the container; podman rootless preserves the
+# host UID when --userns=keep-id is set.
+if [ "$ROOTLESS" = "1" ]; then
+    if [ "$RUNTIME_NAME" = "docker" ]; then
+        DOCKER_OPTS="$DOCKER_OPTS --user 0:0"
+    elif [ "$RUNTIME_NAME" = "podman" ]; then
+        DOCKER_OPTS="$DOCKER_OPTS --userns=keep-id"
+    fi
+fi
 
 # Mount conda installation if specified
 if [ -n "${CONDA_PREFIX:-}" ] && [ -d "$CONDA_PREFIX" ]; then
@@ -287,6 +322,7 @@ echo "Starting Claude Code in Docker..."
     $MOUNT_ARGS \
     $ENV_ARGS \
     -e CLAUDE_CONTINUE_FLAG="$CONTINUE_FLAG" \
+    -e CLAUDE_DOCKER_ROOTLESS="$ROOTLESS" \
     --workdir /workspace \
     --name "claude-docker-$(basename "$CURRENT_DIR")-$$" \
     claude-docker:latest ${ARGS[@]+"${ARGS[@]}"}

@@ -14,7 +14,7 @@ if [ -f /app/.env ]; then
     set -a
     source /app/.env 2>/dev/null || true
     set +a
-    
+
     # Export Twilio variables for runtime use
     export TWILIO_ACCOUNT_SID
     export TWILIO_AUTH_TOKEN
@@ -73,4 +73,9 @@ fi
 
 # Start Claude Code with permissions bypass
 echo "Starting Claude Code..."
+# Allow --dangerously-skip-permissions to run as root under rootless Docker
+# (container UID 0 = host user, so this is not actually privileged).
+if [ "${CLAUDE_DOCKER_ROOTLESS:-0}" = "1" ]; then
+    export IS_SANDBOX=1
+fi
 exec claude $CLAUDE_CONTINUE_FLAG --dangerously-skip-permissions "$@"
