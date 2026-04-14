@@ -110,6 +110,10 @@ ENV PATH="/home/claude-user/.local/bin:${PATH}"
 # Install MCP servers from configuration file
 # RUN /app/install-mcp-servers.sh
 
+# For rootless Docker
+RUN chown claude-user:claude-user -R /home/claude-user/
+RUN chown claude-user:claude-user -R /app/
+
 # Configure git user during build using host git config passed as build args
 ARG GIT_USER_NAME=""
 ARG GIT_USER_EMAIL=""
@@ -132,6 +136,7 @@ RUN rtk init -g
 # Install nWave harness
 RUN pipx install nwave-ai
 RUN nwave-ai install
+RUN ln -s /home/claude-user/.local/pipx/ /home/claude-user/.local/share/pipx
 
 # Set working directory to mounted volume
 WORKDIR /workspace
@@ -141,3 +146,6 @@ ENV NODE_ENV=production
 
 # Start both MCP server and Claude Code
 ENTRYPOINT ["/app/startup.sh"]
+
+# !!!!!!!!!!!!!!!!!!!!
+# For troubleshooting run: docker run -it --rm --entrypoint bash claude-docker
