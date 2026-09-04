@@ -4,7 +4,7 @@ trap 'echo "$0: line $LINENO: $BASH_COMMAND: exitcode $?"' ERR
 # ABOUTME: Wrapper script to run Claude Code in Docker container
 # ABOUTME: Handles project mounting, persistent Claude config, and environment variables
 
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
 source "$SCRIPT_DIR/lib-common.sh"
@@ -21,38 +21,38 @@ ARGS=()
 
 while [[ $# -gt 0 ]]; do
     case $1 in
-        --podman)
-            DOCKER=podman
-            shift
-            ;;
-        --no-cache)
-            NO_CACHE="--no-cache"
-            shift
-            ;;
-        --rebuild)
-            FORCE_REBUILD=true
-            shift
-            ;;
-        --continue)
-            CONTINUE_FLAG="--continue"
-            shift
-            ;;
-        --memory)
-            MEMORY_LIMIT="$2"
-            shift 2
-            ;;
-        --gpus)
-            GPU_ACCESS="$2"
-            shift 2
-            ;;
-        --cc-version)
-            CC_VERSION="$2"
-            shift 2
-            ;;
-        *)
-            ARGS+=("$1")
-            shift
-            ;;
+    --podman)
+        DOCKER=podman
+        shift
+        ;;
+    --no-cache)
+        NO_CACHE="--no-cache"
+        shift
+        ;;
+    --rebuild)
+        FORCE_REBUILD=true
+        shift
+        ;;
+    --continue)
+        CONTINUE_FLAG="--continue"
+        shift
+        ;;
+    --memory)
+        MEMORY_LIMIT="$2"
+        shift 2
+        ;;
+    --gpus)
+        GPU_ACCESS="$2"
+        shift 2
+        ;;
+    --cc-version)
+        CC_VERSION="$2"
+        shift 2
+        ;;
+    *)
+        ARGS+=("$1")
+        shift
+        ;;
     esac
 done
 
@@ -72,8 +72,7 @@ if [ "$RUNTIME_NAME" = "docker" ]; then
         ROOTLESS=1
     fi
 elif [ "$RUNTIME_NAME" = "podman" ]; then
-    if [ "$("$DOCKER" info --format '{{.Host.Security.Rootless}}' 2>/dev/null)" = "true" ];
-then
+    if [ "$("$DOCKER" info --format '{{.Host.Security.Rootless}}' 2>/dev/null)" = "true" ]; then
         ROOTLESS=1
     fi
 fi
@@ -174,7 +173,9 @@ mkdir -p "$SSH_DIR"
 # Copy authentication files to persistent claude-home if they don't exist
 if [ -n "$HOST_HOME" ] && [ -f "$HOST_HOME/.claude/.credentials.json" ] && [ ! -f "$CLAUDE_HOME_DIR/.credentials.json" ]; then
     echo "✓ Copying Claude authentication to persistent directory"
-    cp "$HOST_HOME/.claude/.credentials.json" "$CLAUDE_HOME_DIR/.credentials.json"
+    sudo cp "$HOST_HOME/.claude/.credentials.json" "$CLAUDE_HOME_DIR/.credentials.json"
+    # ls -laht "$CLAUDE_HOME_DIR/.credentials.json"
+    # chown +rw "$CLAUDE_HOME_DIR/.credentials.json"
 fi
 
 # Log information about persistent Claude home directory
@@ -211,7 +212,7 @@ else
     # Create SSH config if it doesn't exist
     SSH_CONFIG_PATH="$SSH_DIR/config"
     if [ ! -f "$SSH_CONFIG_PATH" ]; then
-        cat > "$SSH_CONFIG_PATH" << 'EOF'
+        cat >"$SSH_CONFIG_PATH" <<'EOF'
 Host github.com
     HostName github.com
     User git

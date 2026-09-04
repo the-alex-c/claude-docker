@@ -130,16 +130,10 @@ RUN if [ -n "$GIT_USER_NAME" ] && [ -n "$GIT_USER_EMAIL" ]; then \
         echo "Run 'git config --global user.name \"Your Name\"' and 'git config --global user.email \"you@example.com\"' on host first"; \
     fi
 
-# Install Rust Token Killer
-RUN curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh
-# RUN echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
-# RUN cargo install --git https://github.com/rtk-ai/rtk
-RUN rtk init -g
-
-# Install nWave harness
-RUN pipx install nwave-ai
-RUN nwave-ai install
-RUN ln -s /home/claude-user/.local/pipx/ /home/claude-user/.local/share/pipx
+# Install plugins (RTK, nWave)
+COPY --chown=claude-user src/install-plugins.sh /app/install-plugins.sh
+RUN chmod +x /app/install-plugins.sh
+RUN /app/install-plugins.sh
 
 # Set working directory to mounted volume
 WORKDIR /workspace
