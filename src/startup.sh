@@ -78,4 +78,6 @@ echo "Starting Claude Code..."
 if [ "${CLAUDE_DOCKER_ROOTLESS:-0}" = "1" ]; then
     export IS_SANDBOX=1
 fi
-exec claude $CLAUDE_CONTINUE_FLAG --dangerously-skip-permissions "$@"
+# exec claude $CLAUDE_CONTINUE_FLAG --dangerously-skip-permissions "$@"
+# NOT LONGER ALLOWING THINS SINCE TO MODELS ARE TOO DANGEROUS NOW
+exec claude $CLAUDE_CONTINUE_FLAG "$@"
